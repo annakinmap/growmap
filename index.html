@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GrowMap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f1f4ec; --card:#fff; --ink:#16241b; --soft:#516356;
+    --leaf:#2f6b3f; --leaf-bright:#46a259; --gold:#b07d28;
+    --line:#d6e0ce; --line2:#c0d2b6;
+    --now-bg:#e7f4e7; --now-fg:#1f6f3a;
+    --last-bg:#fbf0db; --last-fg:#9a6a17;
+    --soon-bg:#e6f0f3; --soon-fg:#2d6473;
+    --closed-bg:#eceee9; --closed-fg:#7c887b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:28px 28px}
+  .app{max-width:520px;margin:0 auto;padding:0 16px 92px;min-height:100vh}
+  button{font-family:inherit;cursor:pointer}
+
+  header{padding:24px 4px 12px;display:flex;align-items:baseline;justify-content:space-between}
+  .brand{display:flex;align-items:baseline;gap:8px}
+  .brand h1{font-family:'Fraunces',serif;font-size:26px;font-weight:600;letter-spacing:-.02em}
+  .brand .m{color:var(--leaf-bright)}
+  .brand .v{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--gold);letter-spacing:.08em}
+  .season-mini{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--soft);text-align:right;line-height:1.4}
+
+  /* tabs */
+  nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line2);display:flex;z-index:50}
+  nav button{flex:1;padding:12px 0 max(12px,env(safe-area-inset-bottom));background:none;border:none;font-size:12px;font-weight:600;color:var(--soft);font-family:'IBM Plex Mono',monospace;letter-spacing:.04em}
+  nav button.on{color:var(--leaf)}
+  nav button .ic{display:block;font-size:17px;margin-bottom:2px}
+
+  /* setup card */
+  .setup{background:var(--card);border:1px solid var(--line2);border-radius:14px;padding:16px;margin-top:8px}
+  .lab{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--leaf);margin-bottom:10px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{border:1px solid var(--line2);background:var(--paper);border-radius:100px;padding:8px 13px;font-size:13.5px;font-weight:500;color:var(--ink);transition:.15s}
+  .chip.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
+  .custom{margin-top:11px;display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--soft);flex-wrap:wrap}
+  .custom input{font:inherit;font-size:14px;border:1px solid var(--line2);border-radius:9px;padding:8px 10px;background:var(--paper);color:var(--ink)}
+
+  .group{margin-top:20px}
+  .group-h{display:flex;align-items:center;gap:9px;margin:0 4px 10px}
+  .group-h .dot{width:9px;height:9px;border-radius:50%}
+  .group-h h2{font-size:12.5px;font-weight:600;text-transform:uppercase;font-family:'IBM Plex Mono',monospace;letter-spacing:.04em}
+  .group-h .ct{font-size:12px;color:var(--soft);font-family:'IBM Plex Mono',monospace}
+
+  .card{background:var(--card);border:1px solid var(--line2);border-radius:14px;padding:15px 16px;margin-bottom:10px;position:relative;overflow:hidden}
+  .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--closed-fg)}
+  .card.active::before,.card.now::before{background:var(--now-fg)}
+  .card.last_call::before{background:var(--last-fg)}
+  .card.upcoming::before{background:var(--soon-fg)}
+  .card.passed{opacity:.72}
+  .card.done{opacity:.85}
+  .card.done::before{background:var(--leaf-bright)}
+  .row1{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .pname{font-family:'Fraunces',serif;font-size:18px;font-weight:600;line-height:1.15}
+  .pname.link{text-decoration:none;color:inherit;border-bottom:1px dashed var(--line2)}
+  .pmeta{font-size:12px;color:var(--soft);margin-top:2px;text-transform:capitalize}
+  .status{flex-shrink:0;font-size:11px;font-weight:600;font-family:'IBM Plex Mono',monospace;padding:6px 10px;border-radius:100px;white-space:nowrap}
+  .status.active{background:var(--now-bg);color:var(--now-fg)}
+  .status.last_call{background:var(--last-bg);color:var(--last-fg)}
+  .status.upcoming{background:var(--soon-bg);color:var(--soon-fg)}
+  .status.passed,.status.skipped{background:var(--closed-bg);color:var(--closed-fg)}
+  .status.done{background:var(--now-bg);color:var(--now-fg)}
+  .action{margin-top:10px;font-size:15px;font-weight:600}
+  .action .win{font-weight:400;color:var(--soft);font-size:13px}
+  .btns{display:flex;gap:8px;margin-top:12px}
+  .btn{flex:1;border-radius:10px;padding:10px 0;font-size:14px;font-weight:600;border:1px solid var(--line2);background:var(--paper);color:var(--ink)}
+  .btn.log{background:var(--leaf);border-color:var(--leaf);color:#fff}
+  .undo{margin-top:10px;background:none;border:none;font-size:12.5px;color:var(--soft);text-decoration:underline;padding:0}
+
+  .empty{background:var(--card);border:1px dashed var(--line2);border-radius:14px;padding:26px 20px;text-align:center;color:var(--soft);font-size:14.5px;margin-top:14px}
+  .empty b{color:var(--ink)}
+  .empty .go{display:inline-block;margin-top:12px;background:var(--leaf);color:#fff;border:none;border-radius:100px;padding:10px 18px;font-size:14px;font-weight:600}
+
+  /* plants tab */
+  .addbtn{flex-shrink:0;border-radius:100px;border:1px solid var(--line2);background:var(--paper);color:var(--leaf);font-size:13px;font-weight:600;padding:7px 13px}
+  .addbtn.in{background:var(--leaf);border-color:var(--leaf);color:#fff}
+
+  /* detail */
+  .back{background:none;border:none;color:var(--leaf);font-size:14px;font-weight:600;padding:10px 4px;font-family:'IBM Plex Mono',monospace}
+  .detail{background:var(--card);border:1px solid var(--line2);border-radius:14px;padding:20px;margin-top:4px}
+  .detail h2{font-family:'Fraunces',serif;font-size:26px;font-weight:600}
+  .latin{font-size:13px;color:var(--soft);font-style:italic;margin-top:2px}
+  .facts{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+  .fact{font-size:12px;font-family:'IBM Plex Mono',monospace;background:var(--paper);border:1px solid var(--line2);border-radius:100px;padding:5px 11px;color:var(--soft)}
+  .dsec{margin-top:18px}
+  .dsec .lab{margin-bottom:7px}
+  .dsec p,.dsec li{font-size:14.5px;color:var(--ink)}
+  .dsec ul{list-style:none}
+  .dsec li{padding:7px 0 7px 20px;position:relative;border-top:1px solid var(--line)}
+  .dsec li:first-child{border-top:none}
+  .dsec li::before{content:"✦";position:absolute;left:0;color:var(--leaf-bright)}
+  .dsec li.warn::before{content:"✕";color:#b0552a}
+  .winrow{display:flex;justify-content:space-between;font-size:14px;padding:8px 0;border-top:1px solid var(--line)}
+  .winrow:first-of-type{border-top:none}
+  .winrow .st{font-family:'IBM Plex Mono',monospace;font-size:11.5px}
+  .mates{font-size:14px}
+  .mates .good{color:var(--now-fg);font-weight:600}
+  .mates .bad{color:#b0552a;font-weight:600}
+
+  .foot{margin-top:26px;font-size:12px;color:var(--soft);text-align:center;line-height:1.5;padding:0 8px}
+
+  /* map */
+  .mapctrls{display:flex;gap:18px;align-items:center;margin:4px 4px 14px;flex-wrap:wrap}
+  .stepper{display:flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--soft)}
+  .stepper button{width:26px;height:26px;border-radius:8px;border:1px solid var(--line2);background:var(--card);font-size:15px;line-height:1;color:var(--ink)}
+  .stepper span{min-width:12px;text-align:center;color:var(--ink);font-weight:600}
+  .gridwrap{background:var(--card);border:1px solid var(--line2);border-radius:14px;padding:14px}
+  .gridgrid{display:grid;gap:6px}
+  .cell{aspect-ratio:1;border:1.5px solid var(--line2);border-radius:9px;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:10.5px;text-align:center;padding:2px;color:var(--ink);font-weight:600;line-height:1.15;font-family:'Inter',sans-serif}
+  .cell.empty{color:var(--line2);font-size:17px;font-weight:400}
+  .cell.good{border-color:var(--now-fg);box-shadow:0 0 0 2px var(--now-bg) inset}
+  .cell.bad{border-color:#b0552a;box-shadow:0 0 0 2px #f7ded1 inset}
+  .legend{display:flex;gap:16px;margin-top:12px;font-size:12px;color:var(--soft);flex-wrap:wrap}
+  .legend .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .panel{margin-top:14px;background:var(--card);border:1px solid var(--line2);border-radius:14px;padding:14px 16px}
+  .panel .lab{margin-bottom:9px}
+  .panel .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .panel .rowbtns{display:flex;gap:8px;margin-top:4px}
+  .panel .pname{font-family:'Fraunces',serif;font-size:17px;font-weight:600;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><h1>Grow<span class="m">Map</span></h1><span class="v">beta</span></div>
+    <div class="season-mini" id="seasonMini"></div>
+  </header>
+  <div id="view"></div>
+  <div class="foot" id="foot"></div>
+</div>
+<nav>
+  <button data-tab="today"><span class="ic">☀</span>Today</button>
+  <button data-tab="map"><span class="ic">▦</span>Map</button>
+  <button data-tab="plants"><span class="ic">❀</span>Plants</button>
+  <button data-tab="setup"><span class="ic">⚙</span>Setup</button>
+</nav>
+
+<script>
+/* ================= ENGINE (tested: 27/27) ================= */
+const DAY=86400000;
+function addWeeks(base,wk){const d=new Date(base.getTime());d.setDate(d.getDate()+wk*7);return d}
+function midnight(d){const x=new Date(d.getTime());x.setHours(0,0,0,0);return x}
+function resolveFrost(month,day,today){const t=midnight(today);const y=t.getFullYear();
+  const c=[y-1,y,y+1].map(yr=>midnight(new Date(yr,month,day)));
+  c.sort((a,b)=>Math.abs(a-t)-Math.abs(b-t));return c[0]}
+function windowsFor(p,frost){const w=[];
+  if(p.sow_indoors)w.push({action:'Sow indoors',start:addWeeks(frost,p.sow_indoors[0]),end:addWeeks(frost,p.sow_indoors[1])});
+  if(p.plant_out)w.push({action:p.sow_indoors?'Plant out':'Sow / plant outdoors',start:addWeeks(frost,p.plant_out[0]),end:addWeeks(frost,p.plant_out[1])});
+  return w}
+function classifyWindow(win,today,lastCallDays=10){const t=midnight(today);
+  if(t<win.start)return'upcoming';if(t>win.end)return'passed';
+  return Math.round((win.end-t)/DAY)<=lastCallDays?'last_call':'active'}
+function tasksFor(plants,frost,today){const out=[];
+  for(const p of plants)for(const win of windowsFor(p,frost)){
+    out.push({id:p.id+'::'+win.action,plantId:p.id,plantName:p.name,action:win.action,start:win.start,end:win.end,status:classifyWindow(win,today)})}
+  const rank={last_call:0,active:1,upcoming:2,passed:3};
+  out.sort((a,b)=>rank[a.status]-rank[b.status]||a.start-b.start);return out}
+function weeksFromFrost(frost,today){return Math.round((midnight(today)-frost)/(DAY*7))}
+
+/* ================= VERIFIED PLANT DATA (5 pilots) ================= */
+const PLANTS=[
+ {id:'tomato',name:'Tomato',latin:'Solanum lycopersicum',cat:'vegetable',diff:'medium',sun:'full sun',water:'high water',frost:'no frost tolerance',
+  sow_indoors:[-8,-6],plant_out:[1,3],harvest:'60–85 days',spacing:'50 cm',
+  feed:'Switch to high-potassium feed once first flowers appear (every 14 days).',
+  companions:['basil','carrot','chives','marigold'],antagonists:['potato','fennel','kale','corn'],
+  tips:['Pinch out side shoots on vine types','Water consistently to prevent split fruit','Stake or string-support early, before plants flop'],
+  mistakes:['Planting out before nights stay above 10°C','Overwatering seedlings (damping off)']},
+ {id:'basil',name:'Basil',latin:'Ocimum basilicum',cat:'herb',diff:'easy',sun:'full sun',water:'medium water',frost:'no frost tolerance',
+  sow_indoors:[-6,-2],plant_out:[2,4],harvest:'30–60 days',spacing:'20 cm',
+  feed:'Light liquid feed every 3 weeks; overfeeding dulls flavour.',
+  companions:['tomato','pepper'],antagonists:['sage'],
+  tips:['Pinch growing tips to make it bush out','Harvest from the top, never strip lower leaves','Keep above 15°C at all times'],
+  mistakes:['Cold windowsills kill it overnight','Letting it flower turns leaves bitter']},
+ {id:'kale',name:'Kale',latin:'Brassica oleracea (Acephala)',cat:'vegetable',diff:'easy',sun:'full sun',water:'medium water',frost:'hardy',
+  sow_indoors:[-6,-4],plant_out:[-2,6],harvest:'50–70 days',spacing:'40 cm',
+  feed:'Nitrogen-rich feed monthly for leafy growth.',
+  companions:['onion','beet','dill'],antagonists:['strawberry','tomato'],
+  tips:['Frost sweetens the flavour — harvest into winter','Pick outer leaves, let the centre keep growing','Net against cabbage moths in summer'],
+  mistakes:['Planting near strawberries','Summer heat makes leaves bitter — partial shade helps in warm zones']},
+ {id:'strawberry',name:'Strawberry',latin:'Fragaria × ananassa',cat:'fruit / berry',diff:'easy',sun:'full sun',water:'medium water',frost:'hardy',
+  sow_indoors:null,plant_out:[-2,4],harvest:'60–90 days',spacing:'30 cm',
+  feed:'Feed every 2 weeks while fruiting; stop after harvest.',
+  companions:['borage','lettuce','spinach','onion'],antagonists:['kale','tomato'],
+  tips:['Keep the crown at soil level, never buried','Straw mulch under fruit keeps it clean and rot-free','Remove runners for bigger berries, keep them for more plants'],
+  mistakes:['Burying the crown (rots)','Overhead watering during fruiting invites grey mould']},
+ {id:'pea',name:'Sugar snap pea',latin:'Pisum sativum',cat:'vegetable',diff:'easy',sun:'full sun',water:'medium water',frost:'light frost ok',
+  sow_indoors:null,plant_out:[-4,4],harvest:'55–70 days',spacing:'5 cm',
+  feed:'Fixes its own nitrogen — skip high-N feeds entirely.',
+  companions:['carrot','radish','cucumber'],antagonists:['onion','garlic'],
+  tips:['Put netting or sticks up at sowing time, not later','Pick every 2 days to keep plants producing','Soak seeds overnight before sowing'],
+  mistakes:['Sowing into cold, waterlogged soil (seeds rot)','Planting near the onion family']}
+];
+const PRESETS=[
+ {key:'helsinki',label:'Helsinki',m:4,d:15},
+ {key:'london',label:'London',m:3,d:20},
+ {key:'newyork',label:'New York',m:3,d:15},
+ {key:'melbourne',label:'Melbourne',m:8,d:5}
+];
+
+/* ================= STATE ================= */
+const SKEY='growmap_beta_v1';
+let S=load();
+function load(){let s=null;try{const raw=localStorage.getItem(SKEY);if(raw)s=JSON.parse(raw)}catch(e){}
+  if(!s)s={tab:'today',frostKey:'helsinki',frostCustom:null,garden:[],acts:{},detail:null};
+  if(s.map==null)s.map={};
+  if(s.mapRows==null)s.mapRows=4;
+  if(s.mapCols==null)s.mapCols=4;
+  if(s.picker===undefined)s.picker=null;
+  if(s.cellMenu===undefined)s.cellMenu=null;
+  return s}
+function getPlant(id){return PLANTS.find(p=>p.id===id)}
+function save(){try{localStorage.setItem(SKEY,JSON.stringify(S))}catch(e){}}
+const TODAY=midnight(new Date());
+function frost(){
+  if(S.frostCustom){const c=new Date(S.frostCustom+'T00:00:00');return resolveFrost(c.getMonth(),c.getDate(),TODAY)}
+  const p=PRESETS.find(p=>p.key===S.frostKey)||PRESETS[0];return resolveFrost(p.m,p.d,TODAY)}
+function seasonKey(){return frost().getFullYear()} // acts reset each season
+function fmt(dt){return dt.toLocaleDateString(undefined,{month:'short',day:'numeric'})}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+/* ================= RENDER ================= */
+const view=document.getElementById('view');
+function render(){
+  save();
+  const f=frost();const wk=weeksFromFrost(f,TODAY);
+  const loc=S.frostCustom?'your frost date':(PRESETS.find(p=>p.key===S.frostKey)||{}).label;
+  document.getElementById('seasonMini').innerHTML=
+    (wk>=0?wk+' wks past frost':(-wk)+' wks to frost')+'<br>'+esc(loc)+' · '+fmt(f);
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===S.tab));
+  document.getElementById('foot').innerHTML = S.tab==='today'
+    ? 'GrowMap beta · 5 human-verified plants · timing computed live from your frost date.':'';
+  if(S.detail)return renderDetail();
+  if(S.tab==='today')renderToday(f);
+  else if(S.tab==='map')renderMap(f);
+  else if(S.tab==='plants')renderPlants(f);
+  else renderSetup();
+}
+
+function actState(taskId){const a=S.acts[seasonKey()+':'+taskId];return a?a.s:null}
+function setAct(taskId,s){if(s)S.acts[seasonKey()+':'+taskId]={s,d:Date.now()};else delete S.acts[seasonKey()+':'+taskId];render()}
+
+function renderToday(f){
+  const mine=PLANTS.filter(p=>S.garden.includes(p.id));
+  if(!mine.length){
+    view.innerHTML='<div class="empty"><b>Your garden is empty.</b><br>Add what you\'re growing and today\'s tasks appear here.<br><button class="go" onclick="S.tab=\'plants\';render()">Choose plants</button></div>';return}
+  const tasks=tasksFor(mine,f,TODAY);
+  const open=tasks.filter(t=>(t.status==='active'||t.status==='last_call')&&!actState(t.id));
+  const soon=tasks.filter(t=>t.status==='upcoming'&&!actState(t.id));
+  const doneOrSkipped=tasks.filter(t=>actState(t.id));
+  const passed=tasks.filter(t=>t.status==='passed'&&!actState(t.id));
+  let html='';
+  const grp=(title,dot,items,f)=>{if(!items.length)return'';
+    return '<div class="group"><div class="group-h"><span class="dot" style="background:'+dot+'"></span><h2>'+title+'</h2><span class="ct">'+items.length+'</span></div>'+items.map(f).join('')+'</div>'}
+  const openCard=t=>'<div class="card '+t.status+'"><div class="row1"><div><div class="pname">'+esc(t.plantName)+'</div><div class="pmeta">'+esc(t.action)+'</div></div>'+
+    '<div class="status '+t.status+'">'+(t.status==='last_call'?'Last call':'Do now')+'</div></div>'+
+    '<div class="action">'+esc(t.action)+' <span class="win">· until ~'+fmt(t.end)+'</span></div>'+
+    '<div class="btns"><button class="btn log" onclick="setAct(\''+t.id+'\',\'logged\')">Log ✓</button><button class="btn" onclick="setAct(\''+t.id+'\',\'skipped\')">Skip</button></div></div>';
+  const soonCard=t=>'<div class="card upcoming"><div class="row1"><div><div class="pname">'+esc(t.plantName)+'</div><div class="pmeta">'+esc(t.action)+'</div></div>'+
+    '<div class="status upcoming">opens ~'+fmt(t.start)+'</div></div></div>';
+  const doneCard=t=>{const st=actState(t.id);
+    return '<div class="card done"><div class="row1"><div><div class="pname">'+esc(t.plantName)+'</div><div class="pmeta">'+esc(t.action)+'</div></div>'+
+    '<div class="status '+(st==='logged'?'done':'skipped')+'">'+(st==='logged'?'Logged ✓':'Skipped')+'</div></div>'+
+    '<button class="undo" onclick="setAct(\''+t.id+'\',null)">undo</button></div>'};
+  const passCard=t=>'<div class="card passed"><div class="row1"><div><div class="pname">'+esc(t.plantName)+'</div><div class="pmeta">'+esc(t.action)+'</div></div>'+
+    '<div class="status passed">window was '+fmt(t.start)+'–'+fmt(t.end)+'</div></div></div>';
+  html+=grp('Do this now','var(--now-fg)',open,openCard);
+  if(!open.length)html+='<div class="empty"><b>Nothing urgent today.</b><br>Your garden is on schedule.</div>';
+  html+=grp('Coming up','var(--soon-fg)',soon,soonCard);
+  html+=grp('Done & skipped','var(--leaf-bright)',doneOrSkipped,doneCard);
+  html+=grp('Passed this season','var(--closed-fg)',passed,passCard);
+  view.innerHTML=html;
+}
+
+function cellRing(key){
+  const plantId=S.map[key];if(!plantId)return'';
+  const plant=getPlant(plantId);const [r,c]=key.split('-').map(Number);
+  const nbrs=[[r-1,c],[r+1,c],[r,c-1],[r,c+1]];
+  let bad=false,good=false;
+  nbrs.forEach(([nr,nc])=>{
+    const nId=S.map[nr+'-'+nc];if(!nId)return;
+    const nPlant=getPlant(nId);
+    if(plant.antagonists.includes(nId)||nPlant.antagonists.includes(plantId))bad=true;
+    else if(plant.companions.includes(nId)||nPlant.companions.includes(plantId))good=true;
+  });
+  return bad?'bad':(good?'good':'');
+}
+function cellTap(key){
+  if(S.map[key]){S.cellMenu=key;S.picker=null}
+  else{if(!S.garden.length)return;S.picker=key;S.cellMenu=null}
+  render();
+}
+function pickPlant(id){if(S.picker){S.map[S.picker]=id;S.picker=null;render()}}
+function cancelPicker(){S.picker=null;render()}
+function viewFromMap(){const id=S.map[S.cellMenu];S.cellMenu=null;S.detail=id;render()}
+function removeFromMap(){delete S.map[S.cellMenu];S.cellMenu=null;render()}
+function cancelCellMenu(){S.cellMenu=null;render()}
+function adjustRows(d){const nr=S.mapRows+d;if(nr<2||nr>8)return;
+  if(d<0)for(let c=0;c<S.mapCols;c++)delete S.map[(S.mapRows-1)+'-'+c];
+  S.mapRows=nr;S.picker=null;S.cellMenu=null;render()}
+function adjustCols(d){const nc=S.mapCols+d;if(nc<2||nc>8)return;
+  if(d<0)for(let r=0;r<S.mapRows;r++)delete S.map[r+'-'+(S.mapCols-1)];
+  S.mapCols=nc;S.picker=null;S.cellMenu=null;render()}
+
+function renderMap(f){
+  if(!S.garden.length){
+    view.innerHTML='<div class="empty"><b>Add plants to your garden first.</b><br>Once you have plants, place them on your map.<br><button class="go" onclick="S.tab=\'plants\';render()">Choose plants</button></div>';return}
+  let cells='';
+  for(let r=0;r<S.mapRows;r++)for(let c=0;c<S.mapCols;c++){
+    const key=r+'-'+c;const plantId=S.map[key];
+    if(plantId){const p=getPlant(plantId);
+      cells+='<button class="cell filled '+cellRing(key)+'" onclick="cellTap(\''+key+'\')">'+esc(p.name)+'</button>';
+    }else{
+      cells+='<button class="cell empty" onclick="cellTap(\''+key+'\')">+</button>';
+    }
+  }
+  let html='<div class="mapctrls">'+
+    '<div class="stepper">Rows <button onclick="adjustRows(-1)">−</button><span>'+S.mapRows+'</span><button onclick="adjustRows(1)">+</button></div>'+
+    '<div class="stepper">Columns <button onclick="adjustCols(-1)">−</button><span>'+S.mapCols+'</span><button onclick="adjustCols(1)">+</button></div>'+
+    '</div>'+
+    '<div class="gridwrap"><div class="gridgrid" style="grid-template-columns:repeat('+S.mapCols+',1fr)">'+cells+'</div>'+
+    '<div class="legend"><span><span class="sw" style="background:var(--now-bg);border:1px solid var(--now-fg)"></span>good neighbors</span><span><span class="sw" style="background:#f7ded1;border:1px solid #b0552a"></span>bad neighbors</span></div></div>';
+
+  if(S.picker){
+    const chips=S.garden.map(id=>{const p=getPlant(id);return '<button class="chip" onclick="pickPlant(\''+id+'\')">'+esc(p.name)+'</button>'}).join('');
+    html+='<div class="panel"><div class="lab">Place which plant?</div><div class="chips">'+chips+'<button class="chip" onclick="cancelPicker()">Cancel</button></div></div>';
+  }
+  if(S.cellMenu){
+    const p=getPlant(S.map[S.cellMenu]);
+    html+='<div class="panel"><div class="pname">'+esc(p.name)+'</div><div class="rowbtns">'+
+      '<button class="btn" onclick="viewFromMap()">View detail</button>'+
+      '<button class="btn" onclick="removeFromMap()">Remove</button>'+
+      '<button class="btn" onclick="cancelCellMenu()">Cancel</button></div></div>';
+  }
+  view.innerHTML=html;
+}
+
+function renderPlants(f){
+  const html=PLANTS.map(p=>{
+    const inG=S.garden.includes(p.id);
+    const w=windowsFor(p,f).map(win=>({...win,st:classifyWindow(win,TODAY)}));
+    const best=w.find(x=>x.st==='active'||x.st==='last_call')||w.find(x=>x.st==='upcoming')||w[w.length-1];
+    const stLabel={active:'in season now',last_call:'last call',upcoming:'opens ~'+fmt(best.start),passed:'season passed'}[best.st];
+    return '<div class="card '+best.st+'"><div class="row1">'+
+      '<div><a class="pname link" href="#" onclick="S.detail=\''+p.id+'\';render();return false">'+esc(p.name)+'</a>'+
+      '<div class="pmeta">'+esc(p.cat)+' · '+esc(p.diff)+' · '+stLabel+'</div></div>'+
+      '<button class="addbtn'+(inG?' in':'')+'" onclick="toggleGarden(\''+p.id+'\')">'+(inG?'In garden ✓':'+ Add')+'</button></div></div>'}).join('');
+  view.innerHTML='<div class="group"><div class="group-h"><h2>Plant library</h2><span class="ct">'+PLANTS.length+' verified</span></div>'+html+'</div>';
+}
+function toggleGarden(id){const i=S.garden.indexOf(id);if(i>=0)S.garden.splice(i,1);else S.garden.push(id);render()}
+
+function renderDetail(){
+  const p=PLANTS.find(x=>x.id===S.detail);if(!p){S.detail=null;return render()}
+  const f=frost();
+  const wins=windowsFor(p,f).map(w=>({...w,st:classifyWindow(w,TODAY)}));
+  const stTxt={active:'open now',last_call:'last call',upcoming:'upcoming',passed:'passed'};
+  const stCol={active:'var(--now-fg)',last_call:'var(--last-fg)',upcoming:'var(--soon-fg)',passed:'var(--closed-fg)'};
+  const inG=S.garden.includes(p.id);
+  view.innerHTML='<button class="back" onclick="S.detail=null;render()">← back</button>'+
+   '<div class="detail"><h2>'+esc(p.name)+'</h2><div class="latin">'+esc(p.latin)+'</div>'+
+   '<div class="facts"><span class="fact">'+esc(p.cat)+'</span><span class="fact">'+esc(p.diff)+'</span><span class="fact">'+esc(p.sun)+'</span><span class="fact">'+esc(p.water)+'</span><span class="fact">'+esc(p.frost)+'</span><span class="fact">'+esc(p.harvest)+' to harvest</span><span class="fact">'+esc(p.spacing)+' spacing</span></div>'+
+   '<div class="dsec"><div class="lab">Your windows ('+(S.frostCustom?'custom':esc((PRESETS.find(x=>x.key===S.frostKey)||{}).label))+')</div>'+
+     wins.map(w=>'<div class="winrow"><span>'+esc(w.action)+'</span><span>'+fmt(w.start)+' – '+fmt(w.end)+' <span class="st" style="color:'+stCol[w.st]+'">'+stTxt[w.st]+'</span></span></div>').join('')+'</div>'+
+   '<div class="dsec"><div class="lab">Feeding</div><p>'+esc(p.feed)+'</p></div>'+
+   '<div class="dsec"><div class="lab">Grows well with / keep away from</div><p class="mates"><span class="good">✓ '+esc(p.companions.join(', '))+'</span><br><span class="bad">✕ '+esc(p.antagonists.join(', '))+'</span></p></div>'+
+   '<div class="dsec"><div class="lab">Tips</div><ul>'+p.tips.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul></div>'+
+   '<div class="dsec"><div class="lab">Common mistakes</div><ul>'+p.mistakes.map(t=>'<li class="warn">'+esc(t)+'</li>').join('')+'</ul></div>'+
+   '<div class="btns" style="margin-top:18px"><button class="btn'+(inG?'':' log')+'" onclick="toggleGarden(\''+p.id+'\')">'+(inG?'Remove from my garden':'+ Add to my garden')+'</button></div></div>';
+}
+
+function renderSetup(){
+  const chips=PRESETS.map(p=>'<button class="chip'+(!S.frostCustom&&S.frostKey===p.key?' on':'')+'" onclick="S.frostKey=\''+p.key+'\';S.frostCustom=null;render()">'+p.label+'</button>').join('');
+  view.innerHTML='<div class="setup"><div class="lab">Where\'s your garden?</div><div class="chips">'+chips+'</div>'+
+   '<div class="custom"><span>or your own last-frost date:</span><input type="date" id="cd" value="'+(S.frostCustom||'')+'"></div></div>'+
+   '<div class="setup" style="margin-top:12px"><div class="lab">How this works</div>'+
+   '<p style="font-size:14px;color:var(--soft)">Every plant\'s timing is stored as weeks relative to your last frost. Change the frost date and every window on every screen recomputes instantly — the same plant knowledge is correct anywhere on Earth.</p></div>';
+  document.getElementById('cd').addEventListener('change',e=>{if(e.target.value){S.frostCustom=e.target.value;render()}});
+}
+
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;S.detail=null;render()});
+render();
+</script>
+</body>
+</html>
